@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+    canvas {
+        border: 10px solid black;
+        background-color: white;
+        margin-top: 100px;
+    }
+</style>
+</head>
+
+<body  onload="startGame()" style="text-align: center; background-color: powderblue;" id="body">
+    <h1 style="color: darkred; font-family: sans-serif; border: solid black;margin-top: -450px;">Flying Jet</h1>
+    <h3 style="color: darkred; text-align: center; margin-top: 450px;">press "B" for Fly</h3>
+    <button onclick="show_score()">Click to check score</button>
+    <h1 id ="score_head" style="display: none;">Score of thise session</h1>
+    <p style="display: none ;color: darkred; text-align: center;" id="demo"></p>
+<script>
+
+var background,previous_high_score , new_high_score, Gameover, myScore, myGamePiece, myObstacles = [];
+
+function startGame() {
+    myGameArea.start();
+    myScore             =   new component("30px", "Consolas", "black", 40, 40, "text");
+    new_high_score      =   new component("30px", "Consolas", "black", 500, 40, "text");
+    myGamePiece         =   new component(220, 70, "helicopter.png", 30, 380, "image");
+    background          =   new component(780, 360, "image.jpg", 0, 0, "image");
+    Gameover            =   new component("90px", "Consolas", "red", 180, 250, "text");    
+}
+
+var myGameArea = {
+    canvas : document.createElement("canvas"),
+    start : function() {
+        this.canvas.width = 780;
+        this.canvas.height = 360;
+        this.context = this.canvas.getContext("2d");
+        document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+        this.frameNo = 0;
+        this.interval = setInterval(updateGameArea, 20);
+        },
+    clear : function() {
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    },
+    stop : function() {
+        clearInterval(this.interval);
+    }
+}
+
+function component(width, height, color, x, y, type) {
+    this.type = type;
+    if (type == "image") {
+        this.image = new Image();
+        this.image.src = color;
+    }  
+    this.width = width;
+    this.height = height;
+    this.speedX = 0;
+    this.speedY = 0;    
+    this.x = x;
+    this.y = y;   
+    this.gravity = 0.08;
+    this.gravitySpeed = 0; 
+    this.update = function() {
+        ctx = myGameArea.context;
+        if (type == "image") {
+            ctx.drawImage(this.image, this.x, this.y , this.width, this.height);
+        }else if (this.type == "text") {
+            ctx.font = this.width + " " + this.height;
+            ctx.fillStyle = color;
+            ctx.fillText(this.text, this.x, this.y);
+        }
+         else {
+            ctx.fillStyle = color;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+    }
+    this.newPos = function() {
+        this.gravitySpeed += this.gravity;
+        this.x += this.speedX;
+        this.y += this.speedY + this.gravitySpeed; 
+        this.hitBottom();  
+        this.hittop();    
+    }    
+    this.hitBottom = function() {
+        var rockbottom = myGameArea.canvas.height - this.height;
+        if (this.y > rockbottom) {
+            this.y = rockbottom;
+            this.gravitySpeed = 0;
+        }
+    }
+    this.hittop = function() {
+        var rocktop = 0;
+        if (this.y < rocktop) {
+            this.y = rocktop;
+            this.gravitySpeed = 0;
+        }
+    }
+    this.crashWith = function(otherobj) {
+        var myleft = this.x;
+        var myright = this.x + (this.width);
+        var mytop = this.y;
+        var mybottom = this.y + (this.height);
+        var otherleft = otherobj.x;
+        var otherright = otherobj.x + (otherobj.width);
+        var othertop = otherobj.y;
+        var otherbottom = otherobj.y + (otherobj.height);
+        var crash = true;
+        if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
+            crash = false;
+        }
+        return crash;
+    }
+}
+
+function updateGameArea() {
+    
+    var x, height, gap, minHeight, maxHeight, minGap, maxGap;
+    for (i = 0; i < myObstacles.length; i++) {
+        if (myGamePiece.crashWith(myObstacles[i])) {
+            myGamePiece.image.src = "blast.png";  
+            myGamePiece.update();
+            myGameArea.stop();
+            Gameover.text="Game Over";
+            Gameover.update();
+            previous_high_score = sessionStorage.getItem("score");
+            if (previous_high_score == null || previous_high_score < myGameArea.frameNo) {
+                sessionStorage.setItem("score", myGameArea.frameNo); 
+            }
+            var x = sessionStorage.length ;
+            sessionStorage.setItem( x  , myGameArea.frameNo);
+            return;
+        } 
+    }
+
+    myGameArea.clear();
+    myGameArea.frameNo += 1;
+    background.newPos();
+    background.update();
+    if (myGameArea.frameNo == 1 || everyinterval(100)) {
+        x = myGameArea.canvas.width;
+        minHeight = 20;
+        maxHeight = 200;
+        height = Math.floor(Math.random()*(maxHeight-minHeight+1)+minHeight);
+        minGap = 200;
+        maxGap = 300;
+        gap = Math.floor(Math.random()*(maxGap-minGap+1)+minGap);
+        myObstacles.push(new component(50, height, "black", x, 0));
+        myObstacles.push(new component(50, x - height - gap, "black", x, height + gap));
+    }   
+
+    for (i = 0; i < myObstacles.length; i += 1) {
+        myObstacles[i].speedX = -1;
+        if (myGameArea.frameNo <= 100) {
+            myObstacles[i].x += -5 ;    
+        }
+        else if(myGameArea.frameNo <= 200){
+            myObstacles[i].x += -8 ; 
+        }
+        else if(myGameArea.frameNo <= 300){
+            myObstacles[i].x += -12 ; 
+        }
+        else if(myGameArea.frameNo <= 400){
+            myObstacles[i].x += -16 ; 
+        }
+        else{
+            myObstacles[i].x += -20 ; 
+        }
+        myObstacles[i].update();
+    }
+    myGamePiece.newPos();    
+    myGamePiece.update();
+    myScore.text="SCORE: " + myGameArea.frameNo;
+    myScore.update();
+    previous_high_score = sessionStorage.getItem("score");
+    if (previous_high_score > myGameArea.frameNo) {
+        new_high_score.text="HIGH SCORE: " + previous_high_score;
+        new_high_score.update();    
+    }
+    else{
+        new_high_score.text= "HIGH SCORE: " + myGameArea.frameNo;
+        new_high_score.update();
+    }        
+}
+function everyinterval(n) {
+    if ((myGameArea.frameNo / n) % 1 == 0) {return true;}
+    return false;
+}
+document.getElementById("body").onkeydown = function(event){
+    if (event.keyCode == 66 || event.which == 32){
+        jump(-0.3);
+    }
+} 
+document.getElementById("body").onkeyup = function(event){
+    if (event.keyCode == 66 || event.which == 32){
+        jump(0.3);
+    }
+} 
+document.getElementById("body").onkeypress = function(event){
+    if (event.keyCode == 13 || event.which == 13){
+        location.reload();
+    }
+}
+var fullscore = [] , text = "user___________Score"+"<br>" ;
+for(var i = 1 ; i <=sessionStorage.length ; i++){
+    fullscore.push(sessionStorage.getItem(i));
+}
+fullscore.sort(function(a, b){return b - a});
+for (i = 0; i < fullscore.length; i++) {
+  text += "user___________"+fullscore[i] + "<br>";
+}
+document.getElementById("demo").innerHTML = text;
+function jump(n) {
+myGamePiece.gravity = n;
+} 
+function show_score(){
+    document.getElementById("demo").style.display = "block";
+    document.getElementById("score_head").style.display = "block";
+}
+</script>
+</body>
+</html>
+        
